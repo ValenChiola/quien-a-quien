@@ -113,8 +113,8 @@ function App() {
           Total: ${total} - Promedio: ${average.toFixed(2)}
         </h2>
         <ul className="users">
-          {users.map((user, i) => (
-            <li key={i}>
+          {users.map((user) => (
+            <li key={user.name}>
               {user.name} - ${user.amount}
             </li>
           ))}
@@ -123,7 +123,7 @@ function App() {
         <h2>¿Quién le debe a quién?</h2>
         <ul className="users">
           {whoOwesWho().map((item) => (
-            <li>{item}</li>
+            <li key={item}>{item}</li>
           ))}
         </ul>
       </section>
