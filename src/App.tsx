@@ -6,6 +6,8 @@ interface User {
   amount: number;
 }
 
+const MINIMUM_DEBT_AMOUNT = 0.01;
+
 function App() {
   const [users, setUsers] = useState<User[]>([]);
 
@@ -18,7 +20,7 @@ function App() {
     if (users.length === 0) return ["No hay deudas"];
 
     const balances: Record<string, number> = {};
-    users.forEach((user) => (balances[user.name] = user.amount - average));
+    users.forEach(({ name, amount }) => (balances[name] = amount - average));
 
     const debtors = Object.entries(balances)
       .filter(([, balance]) => balance < 0)
@@ -39,7 +41,7 @@ function App() {
       const amount = Math.min(-debtorBalance, creditorBalance);
 
       // Transacción válida
-      if (amount > 0.01) {
+      if (amount > MINIMUM_DEBT_AMOUNT) {
         transactions.push(
           `${debtorName} le debe a ${creditorName} $${amount.toFixed(2)}`
         );
@@ -47,9 +49,9 @@ function App() {
         debtors[i][1] += amount;
         creditors[j][1] -= amount;
 
-        if (Math.abs(debtors[i][1]) < 0.01) i++;
+        if (Math.abs(debtors[i][1]) < MINIMUM_DEBT_AMOUNT) i++;
 
-        if (creditors[j][1] < 0.01) j++;
+        if (creditors[j][1] < MINIMUM_DEBT_AMOUNT) j++;
       } else {
         if (-debtorBalance < creditorBalance) i++;
         else j++;
@@ -61,7 +63,7 @@ function App() {
 
   const onSubmitAddUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
+    const form: HTMLFormElement = e.currentTarget;
     const nameEl = form.elements.namedItem("name");
     const amountEl = form.elements.namedItem("amount");
 
@@ -91,42 +93,74 @@ function App() {
   }, []);
 
   return (
-    <main>
-      <header>
-        <h1>Quién a Quién</h1>
+    <main className="container">
+      <header className="header">
+        <h1 className="title">Quién a Quién</h1>
+        <p className="subtitle">Administrador de gastos compartidos</p>
       </header>
 
-      <section>
+      <div className="content">
         <form className="form" onSubmit={onSubmitAddUser}>
-          <label>
-            Nombre:
-            <input type="text" name="name" ref={nameRef} />
-          </label>
-          <label>
-            Cuánto dinero puso:
-            <input type="text" name="amount" inputMode="decimal" />
-          </label>
-          <button>Agregar</button>
+          <div className="input-container">
+            <label className="label">
+              Nombre:
+              <input
+                type="text"
+                className="input"
+                name="name"
+                ref={nameRef}
+                placeholder="Ej: Juan"
+              />
+            </label>
+          </div>
+
+          <div className="input-container">
+            <label className="label">
+              Cuánto dinero puso:
+              <input
+                type="text"
+                className="input"
+                name="amount"
+                inputMode="decimal"
+                placeholder="Ej: 150.50"
+              />
+            </label>
+          </div>
+
+          <button className="button">Agregar</button>
         </form>
 
-        <h2>
-          Total: ${total} - Promedio: ${average.toFixed(2)}
-        </h2>
-        <ul className="users">
-          {users.map((user) => (
-            <li key={user.name}>
-              {user.name} - ${user.amount}
-            </li>
-          ))}
-        </ul>
+        <div className="summary">
+          <h2 className="summary-title">
+            <span className="total">Total: ${total}</span>
+            <span className="average">Promedio: ${average.toFixed(2)}</span>
+          </h2>
 
-        <h2>¿Quién le debe a quién?</h2>
-        <ul className="users">
-          {whoOwesWho().map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </section>
+          <ul className="list">
+            {users.map((user) => (
+              <li key={user.name} className="list-item">
+                <span className="name" title={user.name}>
+                  {user.name}
+                </span>
+                <span className="amount">${user.amount}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="debts">
+          <h2 className="debts-title">¿Quién le debe a quién?</h2>
+          <ul className="debts-list">
+            {whoOwesWho().map((debt, index) => (
+              <li key={index} className="debt-item">
+                <span className="debt" title={debt}>
+                  {debt}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </main>
   );
 }
