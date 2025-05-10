@@ -80,6 +80,8 @@ function App() {
     if (amount < 0) return alert("El monto no puede ser negativo");
 
     if (!name) return alert("Por favor complete el nombre del usuario");
+    if (name.length > 33)
+      return alert("El nombre no puede tener más de 33 caracteres");
     if (users.some((user) => user.name === name))
       return alert("Ya existe un usuario con ese nombre");
 
