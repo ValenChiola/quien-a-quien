@@ -28,7 +28,7 @@ export const AddUserForm = ({
       return alert("El nombre no puede tener más de 33 caracteres");
 
     if (isNaN(amount)) return alert("El monto debe ser un número");
-    if (amount <= 0) return alert("El monto debe ser mayor a 0");
+    if (amount < 0) return alert("El monto no puede ser negativo");
     if (amount < MINIMUM_DEBT_AMOUNT) amount = 0;
 
     onSubmit({ name, amount });
@@ -47,7 +47,7 @@ export const AddUserForm = ({
             className="input"
             name="name"
             ref={nameRef}
-            placeholder="Ej: Juan"
+            placeholder="Ej: Andy"
           />
         </label>
       </div>
@@ -55,13 +55,7 @@ export const AddUserForm = ({
       <div className="input-container">
         <label className="label">
           Cuánto dinero puso:
-          <input
-            type="number"
-            className="input"
-            name="amount"
-            inputMode="decimal"
-            placeholder="Ej: 150.50"
-          />
+          <input className="input" name="amount" placeholder="Ej: 150.50" />
         </label>
       </div>
 
