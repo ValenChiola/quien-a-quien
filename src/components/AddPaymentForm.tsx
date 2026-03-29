@@ -1,229 +1,309 @@
-import { useState } from "react";
-import type { User, Payment, PaymentSplit } from "../App";
+import { useEffect, useState } from "react"
+import type { Payment, PaymentMode, User } from "../App"
 
 export const AddPaymentForm = ({
-  users,
-  setPayments,
+    users,
+    setPayments,
 }: {
-  users: User[];
-  setPayments: React.Dispatch<React.SetStateAction<Payment[]>>;
+    users: User[]
+    setPayments: React.Dispatch<React.SetStateAction<Payment[]>>
 }) => {
-  const [fromUserId, setFromUserId] = useState<number>(users[0]?.id || 0);
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [mode, setMode] = useState<"equal" | "percentage" | "manual">("equal");
-  const [includeAll, setIncludeAll] = useState(true);
-  const [participants, setParticipants] = useState<number[]>(
-    users.map((u) => u.id),
-  );
-  const [splits, setSplits] = useState(
-    users.map((u) => ({
-      userId: u.id,
-      value: 0,
-    })),
-  );
+    const [fromUserId, setFromUserId] = useState<User["id"] | null>(null)
+    const [totalAmount, setTotalAmount] = useState(0)
+    const [mode, setMode] = useState<PaymentMode>("equal")
+    const [reason, setReason] = useState("")
+    const [includeAll, setIncludeAll] = useState(true)
+    const [participants, setParticipants] = useState<User["id"][]>([])
+    const [splits, setSplits] = useState<
+        {
+            userId: User["id"]
+            value: number
+        }[]
+    >([])
 
-  const addParticipant = (userId: number) => {
-    if (participants.includes(userId)) return;
+    useEffect(() => {
+        setFromUserId(users.at(0)?.id ?? null)
+        setParticipants(users.map(({ id }) => id))
+        setSplits(
+            users.map(({ id }) => ({
+                userId: id,
+                value: 0,
+            })),
+        )
+    }, [users])
 
-    setParticipants((prev) => [...prev, userId]);
-    setSplits((prev) => [...prev, { userId, value: 0 }]);
-  };
+    if (!users.length) return null
 
-  const removeParticipant = (userId: number) => {
-    setParticipants((prev) => prev.filter((id) => id !== userId));
-    setSplits((prev) => prev.filter((s) => s.userId !== userId));
-  };
+    const addParticipant = (userId: User["id"]) => {
+        if (participants.includes(userId)) return
 
-  const toggleAll = (checked: boolean) => {
-    setIncludeAll(checked);
-
-    if (checked) {
-      setParticipants(users.map((u) => u.id));
-      setSplits(
-        users.map((u) => ({
-          userId: u.id,
-          value: 0,
-        })),
-      );
-    } else {
-      setParticipants([]);
-      setSplits([]);
+        setParticipants((old) => [...old, userId])
+        setSplits((old) => [...old, { userId, value: 0 }])
     }
-  };
 
-  const buildPaymentSplits = (): PaymentSplit[] => {
-    return splits.map((s) => {
-      if (mode === "percentage") {
-        return {
-          userId: s.userId,
-          percentage: s.value,
-        } as PaymentSplit;
-      }
+    const removeParticipant = (userId: User["id"]) => {
+        setParticipants((old) => old.filter((id) => id !== userId))
+        setSplits((old) => old.filter((s) => s.userId !== userId))
+        setIncludeAll(false)
+    }
 
-      return {
-        userId: s.userId,
-        amount: mode === "equal" ? totalAmount / (splits.length || 1) : s.value,
-      } as PaymentSplit;
-    });
-  };
+    const toggleAll = (checked: boolean) => {
+        setIncludeAll(checked)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+        if (checked) {
+            setParticipants(users.map((u) => u.id))
+            setSplits(
+                users.map((u) => ({
+                    userId: u.id,
+                    value: 0,
+                })),
+            )
+        } else {
+            setParticipants([])
+            setSplits([])
+        }
+    }
 
-    const payment: Payment = {
-      id: crypto.randomUUID(),
-      fromUserId,
-      totalAmount,
-      splits: buildPaymentSplits(),
-    };
+    const buildPercentagePaymentSplits = () =>
+        splits.map(({ userId, value }) => ({
+            userId,
+            percentage: value,
+        }))
 
-    setPayments((old) => old.concat(payment));
+    const buildEqualOrManualPaymentSplits = () =>
+        splits.map(({ userId, value }) => ({
+            userId,
+            amount:
+                mode === "equal" ? totalAmount / (splits.length || 1) : value,
+        }))
 
-    toggleAll(true);
-    setTotalAmount(0);
-    setMode("equal");
-  };
+    const handleSubmit = (event: React.FormEvent) => {
+        event.preventDefault()
 
-  const availableUsers = users.filter((u) => !participants.includes(u.id));
+        if (!fromUserId) return alert("Seleccione quién paga")
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-    >
-      <h2>Nuevo Pago</h2>
+        if (totalAmount <= 0)
+            return alert("El monto total debe ser mayor a cero")
 
-      <label>
-        Quién paga:
-        <select
-          value={fromUserId}
-          onChange={(e) => setFromUserId(Number(e.target.value))}
-        >
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        if (!reason.trim()) return alert("Ingrese el motivo del pago")
 
-      <label>
-        Monto total:
-        <input
-          type="number"
-          value={totalAmount}
-          onChange={(e) => setTotalAmount(Number(e.target.value))}
-        />
-      </label>
+        if (participants.length === 0)
+            return alert("Agregue al menos un participante")
 
-      <label>
-        <input
-          type="checkbox"
-          checked={includeAll}
-          onChange={(e) => toggleAll(e.target.checked)}
-        />
-        Todos (incluye al que paga)
-      </label>
+        if (mode === "percentage") {
+            const totalPercentage = splits.reduce(
+                (acc, split) => acc + split.value,
+                0,
+            )
+            if (totalPercentage !== 100)
+                return alert("El total de los porcentajes debe ser 100%")
+        }
 
-      {!includeAll && (
-        <div>
-          <strong>Participantes:</strong>
+        if (mode === "manual") {
+            const totalSplitAmount = splits.reduce(
+                (acc, split) => acc + split.value,
+                0,
+            )
+            if (totalSplitAmount !== totalAmount)
+                return alert(
+                    "El total de los montos ingresados debe ser igual al monto total",
+                )
+        }
 
-          <select
-            onChange={(e) => {
-              const userId = Number(e.target.value);
-              if (userId) addParticipant(userId);
-            }}
-          >
-            <option value="">Agregar usuario</option>
-            {availableUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
+        const payment: Payment = {
+            id: crypto.randomUUID(),
+            fromUserId,
+            totalAmount,
+            ...(mode === "percentage"
+                ? { mode, splits: buildPercentagePaymentSplits() }
+                : { mode, splits: buildEqualOrManualPaymentSplits() }),
+            reason,
+        }
 
-          <div>
-            {participants.map((id) => {
-              const user = users.find((u) => u.id === id);
-              return (
-                <span key={id} style={{ marginRight: 8 }}>
-                  {user?.name}
-                  <button type="button" onClick={() => removeParticipant(id)}>
-                    ❌
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        setPayments((old) => old.concat(payment))
 
-      <div>
-        <button type="button" onClick={() => setMode("equal")}>
-          Dividir igual
-        </button>
-        <button type="button" onClick={() => setMode("percentage")}>
-          Por porcentaje
-        </button>
-        <button type="button" onClick={() => setMode("manual")}>
-          Manual
-        </button>
-      </div>
+        toggleAll(true)
+        setTotalAmount(0)
+        setMode("equal")
+    }
 
-      {participants.length > 0 && (
-        <div>
-          {splits.map((s) => {
-            const user = users.find((u) => u.id === s.userId);
+    const availableUsers = users.filter(({ id }) => !participants.includes(id))
 
-            return (
-              <div key={s.userId} style={{ marginTop: 8 }}>
-                <strong>{user?.name}</strong>
+    return (
+        <form onSubmit={handleSubmit} className="payment-form">
+            <p className="section-title">Nuevo Pago</p>
 
-                {mode === "percentage" && (
-                  <input
+            <div className="form-group">
+                <label className="label">Quién paga</label>
+                <select
+                    className="select"
+                    value={fromUserId ?? ""}
+                    onChange={({ target: { value } }) => setFromUserId(value)}
+                >
+                    {users.map(({ id, name }) => (
+                        <option key={id} value={id}>
+                            {name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="form-group">
+                <label className="label">Monto total</label>
+                <input
+                    className="input"
                     type="number"
-                    placeholder="%"
-                    value={s.value}
-                    onChange={(e) =>
-                      setSplits((prev) =>
-                        prev.map((sp) =>
-                          sp.userId === s.userId
-                            ? { ...sp, value: Number(e.target.value) }
-                            : sp,
-                        ),
-                      )
-                    }
-                  />
-                )}
+                    value={totalAmount}
+                    onChange={({ target: { value } }) => setTotalAmount(+value)}
+                />
+            </div>
 
-                {mode === "manual" && (
-                  <input
-                    type="number"
-                    placeholder="Monto"
-                    value={s.value}
-                    onChange={(e) =>
-                      setSplits((prev) =>
-                        prev.map((sp) =>
-                          sp.userId === s.userId
-                            ? { ...sp, value: Number(e.target.value) }
-                            : sp,
-                        ),
-                      )
-                    }
-                  />
-                )}
+            <label className="checkbox-label">
+                <input
+                    type="checkbox"
+                    checked={includeAll}
+                    onChange={({ target: { checked } }) => toggleAll(checked)}
+                />
+                Incluir a todos
+            </label>
 
-                {mode === "equal" && (
-                  <span>{(totalAmount / (splits.length || 1)).toFixed(2)}</span>
+            <div className="participants-section">
+                {!includeAll && (
+                    <select
+                        className="select"
+                        onChange={({ target: { value } }) =>
+                            addParticipant(value)
+                        }
+                    >
+                        <option value="">+ Agregar participante</option>
+                        {availableUsers.map(({ id, name }) => (
+                            <option key={id} value={id}>
+                                {name}
+                            </option>
+                        ))}
+                    </select>
                 )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                <div className="participants-tags">
+                    {participants.map((id) => {
+                        const user = users.find((user) => user.id === id)
+                        return (
+                            <span key={id} className="participant-tag">
+                                {user?.name}
+                                <button
+                                    type="button"
+                                    className="participant-remove"
+                                    onClick={() => removeParticipant(id)}
+                                >
+                                    ✕
+                                </button>
+                            </span>
+                        )
+                    })}
+                </div>
+            </div>
 
-      <button type="submit">Crear pago</button>
-    </form>
-  );
-};
+            <div className="mode-buttons">
+                <button
+                    type="button"
+                    className={`mode-btn${mode === "equal" ? " active" : ""}`}
+                    onClick={() => setMode("equal")}
+                >
+                    Dividir igual
+                </button>
+                <button
+                    type="button"
+                    className={`mode-btn${mode === "percentage" ? " active" : ""}`}
+                    onClick={() => setMode("percentage")}
+                >
+                    Por porcentaje
+                </button>
+                <button
+                    type="button"
+                    className={`mode-btn${mode === "manual" ? " active" : ""}`}
+                    onClick={() => setMode("manual")}
+                >
+                    Manual
+                </button>
+            </div>
+
+            {participants.length > 0 && (
+                <div className="splits-list">
+                    {splits.map((split) => {
+                        const user = users.find(
+                            (user) => user.id === split.userId,
+                        )
+
+                        return (
+                            <div key={split.userId} className="split-item">
+                                <span className="split-name">{user?.name}</span>
+                                {mode === "percentage" && (
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        placeholder="%"
+                                        value={split.value}
+                                        onChange={({ target: { value } }) =>
+                                            setSplits((old) =>
+                                                old.map((item) =>
+                                                    item.userId === split.userId
+                                                        ? {
+                                                              ...item,
+                                                              value: +value,
+                                                          }
+                                                        : item,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                )}
+                                {mode === "manual" && (
+                                    <input
+                                        className="input"
+                                        type="number"
+                                        placeholder="Monto"
+                                        value={split.value}
+                                        onChange={({ target: value }) =>
+                                            setSplits((old) =>
+                                                old.map((item) =>
+                                                    item.userId === split.userId
+                                                        ? {
+                                                              ...item,
+                                                              value: +value,
+                                                          }
+                                                        : item,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                )}
+                                {mode === "equal" && (
+                                    <span className="split-amount">
+                                        $
+                                        {(
+                                            totalAmount / (splits.length || 1)
+                                        ).toFixed(2)}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            <div className="form-group">
+                <label className="label">Motivo</label>
+                <input
+                    className="input"
+                    type="text"
+                    value={reason}
+                    onChange={({ target: { value } }) => setReason(value)}
+                    placeholder="Ej: Cena, Supermercado..."
+                />
+            </div>
+
+            <button type="submit" className="button">
+                Crear pago
+            </button>
+        </form>
+    )
+}
