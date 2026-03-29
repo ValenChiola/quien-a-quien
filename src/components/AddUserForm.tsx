@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { type User, MAX_NAME_LENGTH, MINIMUM_DEBT_AMOUNT } from "../App";
+import { type User, MAX_NAME_LENGTH } from "../App";
 
 export const AddUserForm = ({
   users,
@@ -14,28 +14,18 @@ export const AddUserForm = ({
     e.preventDefault();
     const form: HTMLFormElement = e.currentTarget;
     const nameEl = form.elements.namedItem("name");
-    const amountEl = form.elements.namedItem("amount");
 
-    if (
-      !(nameEl instanceof HTMLInputElement) ||
-      !(amountEl instanceof HTMLInputElement)
-    )
-      return;
+    if (!(nameEl instanceof HTMLInputElement)) return;
 
     const name = nameEl.value.trim();
-    let amount = +amountEl.value.replace(",", ".");
 
     if (!name) return alert("Por favor complete el nombre del usuario");
     if (name.length > MAX_NAME_LENGTH)
       return alert("El nombre no puede tener más de 33 caracteres");
 
-    if (isNaN(amount)) return alert("El monto debe ser un número");
-    if (amount < 0) return alert("El monto no puede ser negativo");
-    if (amount < MINIMUM_DEBT_AMOUNT) amount = 0;
-
     const user = users.find((item) => item.name === name);
 
-    onSubmit({ id: user?.id ?? Date.now(), name, amount, paysFor: "all" });
+    onSubmit({ id: user?.id ?? Date.now(), name, payments: [] });
 
     form.reset();
     nameRef.current?.focus();
@@ -55,21 +45,6 @@ export const AddUserForm = ({
             placeholder="Ej: Andy"
             autoComplete="off"
           />
-        </label>
-
-        {!!users.length && (
-          <datalist id="users">
-            {users.map((item) => (
-              <option key={item.id}>{item.name}</option>
-            ))}
-          </datalist>
-        )}
-      </div>
-
-      <div className="input-container">
-        <label className="label">
-          Cuánto dinero puso:
-          <input className="input" name="amount" placeholder="Ej: 150.50" />
         </label>
       </div>
 

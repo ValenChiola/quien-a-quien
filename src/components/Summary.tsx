@@ -1,12 +1,8 @@
-import { type User } from "../App";
+import { type User, type Payment } from "../App";
 import { useSummary } from "../hooks/useSummary";
-import { UserList } from "./UserList";
 
-export const Summary = (props: {
-  users: User[];
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-}) => {
-  const { total, average } = useSummary(props.users);
+export const Summary = (props: { users: User[]; payments: Payment[] }) => {
+  const { total, average } = useSummary(props);
 
   return (
     <div className="summary">
@@ -14,8 +10,6 @@ export const Summary = (props: {
         <span className="total">Total: ${total}</span>
         <span className="average">Promedio: ${average.toFixed(2)}</span>
       </h2>
-
-      <UserList {...props} />
     </div>
   );
 };
