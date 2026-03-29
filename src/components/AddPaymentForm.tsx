@@ -32,8 +32,6 @@ export const AddPaymentForm = ({
         )
     }, [users])
 
-    if (!users.length) return null
-
     const addParticipant = (userId: User["id"]) => {
         if (participants.includes(userId)) return
 
