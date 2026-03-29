@@ -18,6 +18,7 @@ export const AddPaymentForm = ({
         {
             userId: User["id"]
             value: number
+            locked: boolean
         }[]
     >([])
 
@@ -28,20 +29,59 @@ export const AddPaymentForm = ({
             users.map(({ id }) => ({
                 userId: id,
                 value: 0,
+                locked: false,
             })),
         )
     }, [users])
+
+    const calcEqualValue = (count: number, currentMode: PaymentMode, currentTotal: number) => {
+        if (count === 0) return 0
+        if (currentMode === "percentage") return 100 / count
+        if (currentMode === "manual") return currentTotal / count
+        return 0
+    }
+
+    useEffect(() => {
+        setSplits((old) =>
+            old.map((s) => ({ ...s, locked: false, value: calcEqualValue(old.length, mode, totalAmount) })),
+        )
+    }, [mode, totalAmount])
+
+    const distributeRemainder = (
+        old: typeof splits,
+        changedId: User["id"],
+        newValue: number,
+        total: number,
+    ) => {
+        const lockedSum = old
+            .filter((s) => s.userId !== changedId && s.locked)
+            .reduce((acc, s) => acc + s.value, 0)
+        const unlocked = old.filter((s) => s.userId !== changedId && !s.locked)
+        const remaining = total - newValue - lockedSum
+        const share = unlocked.length > 0 ? remaining / unlocked.length : 0
+        return old.map((item) => {
+            if (item.userId === changedId) return { ...item, value: newValue, locked: true }
+            if (item.locked) return item
+            return { ...item, value: share }
+        })
+    }
 
     const addParticipant = (userId: User["id"]) => {
         if (participants.includes(userId)) return
 
         setParticipants((old) => [...old, userId])
-        setSplits((old) => [...old, { userId, value: 0 }])
+        setSplits((old) => {
+            const next = [...old, { userId, value: 0, locked: false }]
+            return next.map((s) => ({ ...s, locked: false, value: calcEqualValue(next.length, mode, totalAmount) }))
+        })
     }
 
     const removeParticipant = (userId: User["id"]) => {
         setParticipants((old) => old.filter((id) => id !== userId))
-        setSplits((old) => old.filter((s) => s.userId !== userId))
+        setSplits((old) => {
+            const next = old.filter((s) => s.userId !== userId)
+            return next.map((s) => ({ ...s, locked: false, value: calcEqualValue(next.length, mode, totalAmount) }))
+        })
         setIncludeAll(false)
     }
 
@@ -51,9 +91,10 @@ export const AddPaymentForm = ({
         if (checked) {
             setParticipants(users.map((u) => u.id))
             setSplits(
-                users.map((u) => ({
+                users.map((u, _, arr) => ({
                     userId: u.id,
-                    value: 0,
+                    value: calcEqualValue(arr.length, mode, totalAmount),
+                    locked: false,
                 })),
             )
         } else {
@@ -242,14 +283,7 @@ export const AddPaymentForm = ({
                                         value={split.value}
                                         onChange={({ target: { value } }) =>
                                             setSplits((old) =>
-                                                old.map((item) =>
-                                                    item.userId === split.userId
-                                                        ? {
-                                                              ...item,
-                                                              value: +value,
-                                                          }
-                                                        : item,
-                                                ),
+                                                distributeRemainder(old, split.userId, +value, 100),
                                             )
                                         }
                                     />
@@ -260,16 +294,9 @@ export const AddPaymentForm = ({
                                         type="number"
                                         placeholder="Monto"
                                         value={split.value}
-                                        onChange={({ target: value }) =>
+                                        onChange={({ target: { value } }) =>
                                             setSplits((old) =>
-                                                old.map((item) =>
-                                                    item.userId === split.userId
-                                                        ? {
-                                                              ...item,
-                                                              value: +value,
-                                                          }
-                                                        : item,
-                                                ),
+                                                distributeRemainder(old, split.userId, +value, totalAmount),
                                             )
                                         }
                                     />
